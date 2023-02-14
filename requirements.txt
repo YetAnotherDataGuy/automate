@@ -6,3 +6,5 @@ lazy~=1.4
 azure-common~=1.1.28
 azure-graphrbac~=0.61.1
 azure-mgmt-resource~=22.0.0
+azure-keyvault~=4.2.0
+azure-identity~=1.13.0b2
