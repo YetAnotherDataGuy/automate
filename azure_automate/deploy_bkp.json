@@ -1,0 +1,119 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "resourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the resource group to create."
+      }
+    },
+    "databricksWorkspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the Databricks workspace to create."
+      }
+    },
+    "storageAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the storage account to create."
+      }
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "The location for the resources."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('resourceGroupName')]",
+      "location": "[parameters('location')]"
+    },
+    {
+      "type": "Microsoft.Databricks/workspaces",
+      "apiVersion": "2020-04-01-preview",
+      "name": "[concat(parameters('resourceGroupName'), '/', parameters('databricksWorkspaceName'))]",
+      "location": "[parameters('location')]",
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2021-02-01",
+      "name": "[parameters('storageAccountName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard_RAGRS",
+        "tier": "Standard"
+      },
+      "kind": "StorageV2",
+      "properties": {},
+      "resources": [
+        {
+          "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+          "apiVersion": "2021-02-01",
+          "name": "logs",
+          "dependsOn": [
+            "[concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]"
+          ],
+          "properties": {
+            "publicAccess": "None"
+          }
+        },
+        {
+          "type": "Microsoft.Storage/storageAccounts/blobServices",
+          "apiVersion": "2021-02-01",
+          "name": "default",
+          "dependsOn": [
+            "[concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]"
+          ],
+          "properties": {
+            "cors": {
+              "corsRules": []
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2021-02-01",
+              "name": "data",
+              "dependsOn": [
+                "[concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), '/blobServices/default']"
+              ],
+              "properties": {
+                "publicAccess": "None"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/providers/roleAssignments",
+      "apiVersion": "2020-04-01-preview",
+      "name": "[concat(parameters('storageAccountName'), '/Microsoft.Authorization/', guid(resourceGroup().id))]",
+      "dependsOn": [
+      "[concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]"
+      ],
+      "properties": {
+      "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/8ba3ed9c-205a-4beb-a3b3-8b1bb4f90dbe')]",
+      "principalId": "[reference(concat('Microsoft.Databricks/workspaces/', parameters('databricksWorkspaceName')), '2020-04-01-preview').identity.principalId]",
+      "scope": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('resourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]"
+      }
+      }
+      ],
+      "outputs": {
+      "databricksWorkspaceId": {
+      "type": "string",
+      "value": "[reference(concat('Microsoft.Databricks/workspaces/', parameters('databricksWorkspaceName')), '2020-04-01-preview').id]"
+      },
+      "storageAccountId": {
+      "type": "string",
+      "value": "[reference(concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), '2021-02-01').id]"
+      }
+}
+}
